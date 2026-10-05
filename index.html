@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheDarkNight - คลังเรื่องเล่าและนิยาย</title>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- SweetAlert2 Dark Theme -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    :root {
+      --bg-main: #0a0a0c;
+      --card-bg: #141419;
+      --card-border: #23232b;
+      --accent-red: #e50914;
+      --accent-hover: #ff2a35;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-green: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      padding: 20px 20px 60px;
+    }
+    
+    .top-nav {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto 15px;
+      gap: 12px;
+    }
+    .btn-nav-login {
+      background: #1e242d;
+      color: #94a3b8;
+      border: 1px solid #374151;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-nav-login:hover { background: var(--accent-red); color: #fff; }
+
+    .admin-status-text {
+      color: var(--accent-green);
+      font-weight: bold;
+      font-size: 0.88rem;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: default;
+      user-select: none;
+    }
+    .btn-manage {
+      background: #1e242d;
+      color: #38bdf8;
+      border: 1px solid #0284c7;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 7px 14px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .btn-manage:hover { background: #0284c7; color: #fff; }
+
+    .btn-logout {
+      background: #262626;
+      color: #ef4444;
+      border: 1px solid #404040;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .login-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+    }
+    .login-box {
+      background: #161a22;
+      border: 1px solid #2d3748;
+      padding: 25px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 360px;
+    }
+    .login-box h3 { margin-bottom: 15px; color: #fff; }
+    .login-box input {
+      width: 100%;
+      padding: 9px;
+      margin-bottom: 12px;
+      background: #0d0f12;
+      border: 1px solid #4a5568;
+      color: #fff;
+      border-radius: 4px;
+    }
+
+    .header { text-align: center; margin-bottom: 35px; }
+    .site-title {
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--accent-red);
+      text-shadow: 0 0 20px rgba(229, 9, 20, 0.4);
+      margin-bottom: 8px;
+    }
+    .site-subtitle { color: var(--text-muted); font-size: 0.95rem; }
+
+    .filter-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      max-width: 1000px;
+      margin: 0 auto 35px;
+    }
+    .filter-btn {
+      background: #1b1b22;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .filter-btn.active { background: var(--accent-red); color: #fff; border-color: var(--accent-red); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .cover-wrap {
+      width: 100%;
+      height: 180px;
+      background: #000;
+      position: relative;
+      cursor: pointer;
+    }
+    .cover-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    .order-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border-left: 3px solid var(--accent-red);
+    }
+    .status-dot-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+    }
+    .dot-green { background: #10b981; }
+    .dot-red { background: #ef4444; }
+
+    .card-body { padding: 18px; flex-grow: 1; display: flex; flex-direction: column; }
+    .category-label { font-size: 0.75rem; color: var(--accent-red); font-weight: bold; margin-bottom: 6px; }
+    .story-link {
+      color: #fff;
+      text-decoration: none;
+      font-size: 1.15rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .story-link:hover { color: var(--accent-red); }
+    .story-content {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex-grow: 1;
+      margin-bottom: 16px;
+      white-space: pre-line;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-read {
+      background: #23232b;
+      color: #e2e8f0;
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 7px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .btn-read:hover { background: #374151; }
+    .btn-youtube {
+      background: var(--accent-red);
+      color: white;
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: bold;
+      padding: 7px 12px;
+      border-radius: 4px;
+    }
+
+    .pagination-bar { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 40px; }
+    .btn-page-nav { background: #1e242d; color: #fff; border: 1px solid #374151; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    .btn-page-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div class="top-nav">
+    <button class="btn-nav-login" id="btnShowLogin" onclick="openLoginModal()">🔐 เข้าสู่ระบบ (Admin)</button>
+    <div id="adminControls" style="display:none; align-items:center; gap:10px;">
+      <span class="admin-status-text" id="adminBadge">● แอดมิน: -</span>
+      <a href="javascript:void(0)" onclick="window.open('admin.html', '_blank')" class="btn-manage">⚙️ จัดการนิยาย ↗</a>
+      <button class="btn-logout" onclick="logoutFromHome()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <div class="login-modal" id="loginModal">
+    <div class="login-box">
+      <h3>เข้าสู่ระบบผู้ดูแล</h3>
+      <input type="text" id="mUsername" placeholder="Username">
+      <input type="password" id="mPassword" placeholder="Password">
+      <div style="display:flex; gap:10px;">
+        <button class="filter-btn active" style="flex:1;" onclick="handleModalLogin()">เข้าสู่ระบบ</button>
+        <button class="filter-btn" style="flex:1;" onclick="closeLoginModal()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="header">
+    <h1 class="site-title">TheDarkNight</h1>
+    <p class="site-subtitle">คลังสคริปต์ นิยาย และเรื่องเล่าบรรยากาศราตรีกาล</p>
+  </header>
+
+  <nav class="filter-container">
+    <button class="filter-btn active" onclick="setPublicFilter('ทั้งหมด', this)">ทั้งหมด</button>
+    <button class="filter-btn" onclick="setPublicFilter('เรื่องเล่าประสบการณ์หลอน', this)">ประสบการณ์หลอน</button>
+    <button class="filter-btn" onclick="setPublicFilter('นิยายสยองขวัญ', this)">นิยายสยองขวัญ</button>
+    <button class="filter-btn" onclick="setPublicFilter('นิยายทั่วไป', this)">นิยายทั่วไป</button>
+    <button class="filter-btn" onclick="setPublicFilter('นิทาน', this)">นิทาน</button>
+    <button class="filter-btn" onclick="setPublicFilter('เหตุแห่งกรรม', this)">เหตุแห่งกรรม</button>
+    <button class="filter-btn" onclick="setPublicFilter('เรื่องสั้น', this)">เรื่องสั้น</button>
+  </nav>
+
+  <main class="grid" id="storyGrid"></main>
+
+  <div class="pagination-bar">
+    <button class="btn-page-nav" id="publicPrev" onclick="navigatePublicPage(-1)">← ก่อนหน้า</button>
+    <span id="publicPageLabel" style="font-size: 14px; color: var(--text-muted);">หน้า 1</span>
+    <button class="btn-page-nav" id="publicNext" onclick="navigatePublicPage(1)">ถัดไป →</button>
+  </div>
+
+  <script>
+    const PROJECT_URL = 'https://kihkatxbwreuxtqagvsl.supabase.co';
+    const PROJECT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpaGthdHhid3JldXh0cWFndnNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODA3NzgsImV4cCI6MjEwNjc1Njc3OH0.sgLo1SGSahR0zEMiBucgpogrBmCxmNPGm1ROF6PM5Ak';
+    const dbClient = window.supabase.createClient(PROJECT_URL, PROJECT_KEY);
+
+    let currentPublicPage = 1;
+    const PAGE_LIMIT = 10;
+    let activeFilter = 'ทั้งหมด';
+
+    const popup = {
+      success: (title, text = '') => Swal.fire({
+        icon: 'success',
+        title,
+        text,
+        background: '#161a22',
+        color: '#f3f4f6',
+        confirmButtonColor: '#e50914'
+      }),
+      error: (title, text = '') => Swal.fire({
+        icon: 'error',
+        title,
+        text,
+        background: '#161a22',
+        color: '#f3f4f6',
+        confirmButtonColor: '#e50914'
+      }),
+      warning: (title, text = '') => Swal.fire({
+        icon: 'warning',
+        title,
+        text,
+        background: '#161a22',
+        color: '#f3f4f6',
+        confirmButtonColor: '#e50914'
+      })
+    };
+
+    function checkHomeAuth() {
+      const activeAdmin = localStorage.getItem('darknight_admin');
+      const loginTime = localStorage.getItem('darknight_login_time');
+      const btnShow = document.getElementById('btnShowLogin');
+      const adminControls = document.getElementById('adminControls');
+
+      if (activeAdmin && loginTime) {
+        if (Date.now() - parseInt(loginTime) > 30 * 60 * 1000) {
+          logoutFromHome(false);
+          return;
+        }
+        btnShow.style.display = 'none';
+        adminControls.style.display = 'inline-flex';
+        document.getElementById('adminBadge').innerText = `● แอดมิน: ${activeAdmin}`;
+        startIdleTimer();
+      } else {
+        btnShow.style.display = 'inline-block';
+        adminControls.style.display = 'none';
+      }
+    }
+
+    function openLoginModal() { document.getElementById('loginModal').style.display = 'flex'; }
+    function closeLoginModal() { document.getElementById('loginModal').style.display = 'none'; }
+
+    async function handleModalLogin() {
+      const u = document.getElementById('mUsername').value.trim();
+      const p = document.getElementById('mPassword').value.trim();
+      if (!u || !p) return popup.warning('แจ้งเตือน', 'กรุณากรอก Username และ Password ให้ครบถ้วน');
+
+      const { data, error } = await dbClient
+        .from('admin_users')
+        .select('*')
+        .eq('username', u)
+        .eq('password', p)
+        .single();
+
+      if (error || !data) {
+        popup.error('ผิดพลาด', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      } else {
+        localStorage.setItem('darknight_admin', data.username);
+        localStorage.setItem('darknight_login_time', Date.now().toString());
+        closeLoginModal();
+        popup.success('สำเร็จ', `ยินดีต้อนรับคุณ ${data.username}`);
+        checkHomeAuth();
+      }
+    }
+
+    function logoutFromHome(showAlert = true) {
+      localStorage.removeItem('darknight_admin');
+      localStorage.removeItem('darknight_login_time');
+      checkHomeAuth();
+      if (showAlert) popup.success('เรียบร้อย', 'ออกจากระบบเรียบร้อยแล้ว');
+    }
+
+    let idleTimeout;
+    function resetIdleTimer() {
+      clearTimeout(idleTimeout);
+      if (localStorage.getItem('darknight_admin')) {
+        localStorage.setItem('darknight_login_time', Date.now().toString());
+      }
+      idleTimeout = setTimeout(() => {
+        if (localStorage.getItem('darknight_admin')) {
+          logoutFromHome(false);
+          popup.warning('หมดเวลาการใช้งาน', 'ไม่มีการเคลื่อนไหวหน้าจอเกิน 30 นาที ระบบได้นำคุณออกจากระบบอัตโนมัติ');
+        }
+      }, 30 * 60 * 1000);
+    }
+
+    function startIdleTimer() {
+      const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+      events.forEach(evt => window.addEventListener(evt, resetIdleTimer, false));
+      resetIdleTimer();
+    }
+
+    async function fetchPublicStories() {
+      const from = (currentPublicPage - 1) * PAGE_LIMIT;
+      const to = from + PAGE_LIMIT - 1;
+
+      let query = dbClient
+        .from('stories')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (activeFilter !== 'ทั้งหมด') {
+        query = query.eq('category', activeFilter);
+      }
+
+      const { data, count, error } = await query;
+      if (error) return console.error(error);
+
+      renderCards(data || []);
+
+      const totalPages = Math.ceil((count || 0) / PAGE_LIMIT) || 1;
+      document.getElementById('publicPageLabel').innerText = `หน้า ${currentPublicPage} / ${totalPages}`;
+      document.getElementById('publicPrev').disabled = currentPublicPage <= 1;
+      document.getElementById('publicNext').disabled = currentPublicPage >= totalPages;
+    }
+
+    function renderCards(items) {
+      const grid = document.getElementById('storyGrid');
+      grid.innerHTML = '';
+
+      if (items.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:40px; color:var(--text-muted);">ไม่พบรายการเรื่องในหมวดหมู่นี้</div>';
+        return;
+      }
+
+      items.forEach(item => {
+        const snippet = item.content && item.content.length > 105 ? item.content.substring(0, 105) + '...' : (item.content || '');
+        const storyUrl = `story.html?id=${item.id}`;
+
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="cover-wrap" onclick="window.open('${storyUrl}', '_blank')">
+            <span class="order-badge">EP.${item.category_order || 1}</span>
+            <span class="status-dot-btn ${item.is_aired ? 'dot-green' : 'dot-red'}"></span>
+            ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" loading="lazy">` : ''}
+          </div>
+          <div class="card-body">
+            <span class="category-label">${item.category}</span>
+            <a href="javascript:void(0)" onclick="window.open('${storyUrl}', '_blank')" class="story-link">${item.title}</a>
+            <p class="story-content">${snippet}</p>
+            <div class="card-footer">
+              <a href="javascript:void(0)" onclick="window.open('${storyUrl}', '_blank')" class="btn-read">อ่านเนื้อเรื่อง ↗</a>
+              ${item.youtube_url ? `<a href="${item.youtube_url}" target="_blank" rel="noopener noreferrer" class="btn-youtube">YouTube ↗</a>` : ''}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function setPublicFilter(cat, elem) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      elem.classList.add('active');
+      activeFilter = cat;
+      currentPublicPage = 1;
+      fetchPublicStories();
+    }
+
+    function navigatePublicPage(step) {
+      currentPublicPage += step;
+      fetchPublicStories();
+    }
+
+    checkHomeAuth();
+    fetchPublicStories();
+  </script>
+</body>
+</html>

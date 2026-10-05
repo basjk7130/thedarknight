@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheDarkNight - อ่านเรื่องราว</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-main: #0a0a0c;
+      --card-bg: #141419;
+      --card-border: #23232b;
+      --accent-red: #e50914;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      padding: 30px 20px 80px;
+    }
+    .container {
+      max-width: 850px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 35px;
+      border-radius: 12px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(229, 9, 20, 0.2);
+      color: var(--accent-red);
+      border: 1px solid var(--accent-red);
+      font-size: 13px;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      line-height: 1.3;
+      color: #fff;
+    }
+    .main-cover {
+      width: 100%;
+      max-height: 420px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      display: none;
+    }
+    .content-body {
+      font-size: 1.05rem;
+      line-height: 1.8;
+      color: #e5e7eb;
+      white-space: pre-line;
+      margin-bottom: 35px;
+    }
+    .gallery-title {
+      font-size: 1.2rem;
+      color: #fff;
+      border-left: 3px solid var(--accent-red);
+      padding-left: 10px;
+      margin-bottom: 15px;
+    }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .gallery-grid img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }
+    .btn-yt {
+      display: inline-flex;
+      align-items: center;
+      background: var(--accent-red);
+      color: white;
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: bold;
+      padding: 10px 18px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div id="loading" style="text-align:center; color:var(--text-muted); padding:40px;">กำลังโหลดเนื้อหา...</div>
+    <div id="storyArticle" style="display:none;">
+      <span class="badge" id="categoryBadge"></span>
+      <h1 id="storyTitle"></h1>
+      <img id="mainCoverImg" class="main-cover" src="" alt="ภาพปก">
+      <div class="content-body" id="storyContent"></div>
+
+      <div id="gallerySection" style="display:none;">
+        <h3 class="gallery-title">ภาพประกอบ</h3>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+
+      <div id="ytContainer" style="margin-top: 25px;"></div>
+    </div>
+  </div>
+
+  <script>
+    const PROJECT_URL = 'https://kihkatxbwreuxtqagvsl.supabase.co';
+    const PROJECT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpaGthdHhid3JldXh0cWFndnNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODA3NzgsImV4cCI6MjEwNjc1Njc3OH0.sgLo1SGSahR0zEMiBucgpogrBmCxmNPGm1ROF6PM5Ak';
+    const dbClient = window.supabase.createClient(PROJECT_URL, PROJECT_KEY);
+
+    async function loadStory() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get('id');
+      if (!id) return;
+
+      const { data, error } = await dbClient
+        .from('stories')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        document.getElementById('loading').innerText = 'ไม่พบเนื้อหาที่ต้องการอ่าน';
+        return;
+      }
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('storyArticle').style.display = 'block';
+
+      document.title = data.title + ' - TheDarkNight';
+      document.getElementById('categoryBadge').innerText = `${data.category} #EP.${data.category_order || 1}`;
+      document.getElementById('storyTitle').innerText = data.title;
+      document.getElementById('storyContent').innerText = data.content || '';
+
+      if (data.cover_url) {
+        const coverEl = document.getElementById('mainCoverImg');
+        coverEl.src = data.cover_url;
+        coverEl.style.display = 'block';
+      }
+
+      if (data.gallery_urls && data.gallery_urls.length > 0) {
+        const galleryGrid = document.getElementById('galleryGrid');
+        galleryGrid.innerHTML = '';
+        data.gallery_urls.forEach(url => {
+          const img = document.createElement('img');
+          img.src = url;
+          img.loading = 'lazy';
+          galleryGrid.appendChild(img);
+        });
+        document.getElementById('gallerySection').style.display = 'block';
+      }
+
+      if (data.youtube_url) {
+        document.getElementById('ytContainer').innerHTML = `
+          <a href="${data.youtube_url}" target="_blank" rel="noopener noreferrer" class="btn-yt">
+            ▶ รับชมคลิปเสียงบน YouTube ↗
+          </a>
+        `;
+      }
+    }
+
+    loadStory();
+  </script>
+</body>
+</html>

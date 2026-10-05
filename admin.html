@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheDarkNight - จัดการระบบ (Admin)</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    :root {
+      --bg-dark: #0d0f12;
+      --card-dark: #161a22;
+      --border-dark: #2d3748;
+      --accent-red: #e50914;
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg-dark); margin: 0; padding: 20px; color: #e2e8f0; }
+    .container { max-width: 1100px; margin: auto; background: var(--card-dark); padding: 25px; border-radius: 8px; border: 1px solid var(--border-dark); }
+    h2, h3 { margin-top: 0; color: #fff; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+    input, select, textarea { width: 100%; padding: 10px; background: #0d0f12; color: #fff; border: 1px solid #4a5568; border-radius: 4px; box-sizing: border-box; }
+    textarea { min-height: 100px; resize: none; overflow-y: hidden; font-family: inherit; line-height: 1.5; }
+    button { cursor: pointer; padding: 9px 16px; border: none; border-radius: 4px; font-weight: bold; }
+    .btn-primary { background: var(--accent-red); color: white; }
+    .btn-danger { background: #dc2626; color: white; padding: 6px 12px; font-size: 13px; }
+    .btn-edit { background: #3b82f6; color: white; padding: 6px 12px; font-size: 13px; margin-right: 4px; }
+    .btn-home { background: #1e242d; color: #94a3b8; border: 1px solid #374151; padding: 8px 14px; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold; }
+
+    .nav-tabs { display: flex; gap: 10px; border-bottom: 2px solid var(--border-dark); margin-bottom: 20px; }
+    .nav-tab-btn { background: transparent; color: #94a3b8; border: none; padding: 10px 18px; font-size: 15px; cursor: pointer; border-bottom: 3px solid transparent; }
+    .nav-tab-btn.active { color: #fff; border-bottom-color: var(--accent-red); font-weight: bold; }
+
+    .admin-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 15px; }
+    .admin-tab { background: #1f2937; border: 1px solid #374151; color: #9ca3af; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .admin-tab.active { background: var(--accent-red); color: #fff; border-color: var(--accent-red); }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { border: 1px solid var(--border-dark); padding: 10px; text-align: left; vertical-align: middle; }
+    th { background: #1f2937; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #374151; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 10px 0; }
+    .btn-page { background: var(--border-dark); color: #fff; padding: 8px 16px; border-radius: 4px; font-size: 13px; }
+    .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .swal2-popup.dark-toast {
+      background: #161a22 !important;
+      color: #f3f4f6 !important;
+      border: 1px solid #2d3748 !important;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ส่วนล็อกอิน -->
+  <div id="authSection">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h2>เข้าสู่ระบบ TheDarkNight Admin</h2>
+      <a href="index.html" class="btn-home">🌐 ไปหน้าแรก</a>
+    </div>
+    <div class="form-group">
+      <label>ชื่อผู้ใช้งาน (Username)</label>
+      <input type="text" id="loginUsername" placeholder="ระบุ username">
+    </div>
+    <div class="form-group">
+      <label>รหัสผ่าน (Password)</label>
+      <input type="password" id="loginPassword" placeholder="ระบุรหัสผ่าน">
+    </div>
+    <button type="button" class="btn-primary" id="btnLogin" onclick="handleLogin()">เข้าสู่ระบบ</button>
+  </div>
+
+  <!-- แผงควบคุมระบบหลังบ้าน -->
+  <div id="adminPanel" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid var(--border-dark); margin-bottom: 15px;">
+      <h2>TheDarkNight Management Panel</h2>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span id="currentAdminName" style="color: #38bdf8; font-weight: bold;"></span>
+        <a href="index.html" class="btn-home">🌐 ไปหน้าแรก</a>
+        <button style="background: #374151; color: white;" onclick="handleLogout()">ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active" id="tabStoriesBtn" onclick="switchSection('stories')">จัดการเนื้อเรื่อง / สคริปต์</button>
+      <button class="nav-tab-btn" id="tabAdminsBtn" onclick="switchSection('admins')">จัดการบัญชีแอดมิน</button>
+    </div>
+
+    <!-- ส่วนที่ 1: จัดการเนื้อเรื่อง -->
+    <div id="sectionStories">
+      <div style="background: #1f242d; padding: 20px; border-radius: 6px;" id="storyFormContainer">
+        <h3 id="storyFormTitle">+ เพิ่มเรื่อง / สคริปต์ใหม่</h3>
+        <input type="hidden" id="editStoryId">
+        <input type="hidden" id="existingCoverUrl">
+        <input type="hidden" id="existingGalleryUrls">
+
+        <div class="form-group">
+          <label>หมวดหมู่</label>
+          <select id="storyCategory">
+            <option value="เรื่องเล่าประสบการณ์หลอน">เรื่องเล่าประสบการณ์หลอน</option>
+            <option value="นิยายสยองขวัญ">นิยายสยองขวัญ</option>
+            <option value="นิยายทั่วไป">นิยายทั่วไป</option>
+            <option value="นิทาน">นิทาน</option>
+            <option value="เหตุแห่งกรรม">เหตุแห่งกรรม</option>
+            <option value="เรื่องสั้น">เรื่องสั้น</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ชื่อเรื่อง</label>
+          <input type="text" id="storyTitle" required placeholder="ระบุชื่อเรื่อง">
+        </div>
+        <div class="form-group">
+          <label>อัปโหลดภาพปก (ระบบย่อขนาดลง 80% อัตโนมัติ)</label>
+          <input type="file" id="coverFileInput" accept="image/*">
+          <small id="currentCoverNotice" style="color: #38bdf8; display: none;">* มีภาพเดิมอยู่แล้ว หากไม่เลือกไฟล์ใหม่จะใช้ภาพเดิม</small>
+        </div>
+        <div class="form-group">
+          <label>อัปโหลดภาพประกอบเนื้อเรื่อง (เลือกได้สูงสุด 6 ภาพ - ย่อขนาดลง 80% อัตโนมัติ)</label>
+          <input type="file" id="galleryFileInput" accept="image/*" multiple>
+          <small id="currentGalleryNotice" style="color: #38bdf8; display: none;">* มีภาพประกอบเดิมอยู่แล้ว หากไม่เลือกใหม่จะใช้ชุดเดิม</small>
+        </div>
+        <div class="form-group">
+          <label>ลิงก์ YouTube (สาธารณะเห็น)</label>
+          <input type="url" id="storyYoutube" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+        <div class="form-group">
+          <label>ลิงก์ Google Drive (เฉพาะแอดมินเห็น)</label>
+          <input type="url" id="storyDrive" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-group">
+          <label>เนื้อเรื่อง / สคริปต์ฉบับเต็ม</label>
+          <textarea id="storyContent" placeholder="พิมพ์หรือวางเนื้อเรื่องที่นี่..." oninput="autoGrow(this)"></textarea>
+        </div>
+        <div class="form-group">
+          <label>สถานะการเผยแพร่</label>
+          <select id="storyStatusSelect">
+            <option value="false">ยังไม่เผยแพร่</option>
+            <option value="true">เผยแพร่แล้ว</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn-primary" id="btnSaveStory" onclick="handleSaveStory()">บันทึกข้อมูลเข้าคลัง</button>
+          <button type="button" id="btnCancelStoryEdit" style="background: #4b5563; color: white; display: none;" onclick="cancelStoryEdit()">ยกเลิกการแก้ไข</button>
+        </div>
+      </div>
+
+      <!-- แถบกรองหมวดหมู่ -->
+      <div class="admin-filter-bar">
+        <button class="admin-tab active" onclick="setAdminFilter('ทั้งหมด', this)">ทั้งหมด</button>
+        <button class="admin-tab" onclick="setAdminFilter('เรื่องเล่าประสบการณ์หลอน', this)">เรื่องเล่าประสบการณ์หลอน</button>
+        <button class="admin-tab" onclick="setAdminFilter('นิยายสยองขวัญ', this)">นิยายสยองขวัญ</button>
+        <button class="admin-tab" onclick="setAdminFilter('นิยายทั่วไป', this)">นิยายทั่วไป</button>
+        <button class="admin-tab" onclick="setAdminFilter('นิทาน', this)">นิทาน</button>
+        <button class="admin-tab" onclick="setAdminFilter('เหตุแห่งกรรม', this)">เหตุแห่งกรรม</button>
+        <button class="admin-tab" onclick="setAdminFilter('เรื่องสั้น', this)">เรื่องสั้น</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ภาพปก</th>
+            <th>หมวดหมู่ / ลำดับ</th>
+            <th>ชื่อเรื่อง (คลิกเพื่ออ่าน)</th>
+            <th>สถานะ</th>
+            <th>ลิงก์แนบ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="storyTableBody"></tbody>
+      </table>
+
+      <div class="pagination">
+        <button class="btn-page" id="btnPrev" onclick="changePage(-1)">← หน้าก่อนหน้า</button>
+        <span id="pageIndicator" style="font-size: 14px; color: #9ca3af;">หน้า 1</span>
+        <button class="btn-page" id="btnNext" onclick="changePage(1)">หน้าถัดไป →</button>
+      </div>
+    </div>
+
+    <!-- ส่วนที่ 2: จัดการบัญชีแอดมิน -->
+    <div id="sectionAdmins" style="display: none;">
+      <div style="background: #1f242d; padding: 20px; border-radius: 6px; margin-bottom: 25px;">
+        <h3 id="adminFormTitle">+ เพิ่มบัญชีแอดมินใหม่</h3>
+        <input type="hidden" id="editAdminId">
+        <div class="form-group">
+          <label>ชื่อผู้ใช้งาน (Username)</label>
+          <input type="text" id="adminUserField" placeholder="กำหนด Username">
+        </div>
+        <div class="form-group">
+          <label>รหัสผ่าน (Password)</label>
+          <input type="text" id="adminPassField" placeholder="กำหนดรหัสผ่าน">
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn-primary" id="btnSaveAdmin" onclick="handleSaveAdmin()">บันทึกบัญชีแอดมิน</button>
+          <button type="button" id="btnCancelEdit" style="background:#4b5563; color:white; display:none;" onclick="cancelAdminEdit()">ยกเลิก</button>
+        </div>
+      </div>
+
+      <h3>รายชื่อผู้ดูแลระบบทั้งหมด</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Password</th>
+            <th>วันที่สร้าง</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="adminTableBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const PROJECT_URL = 'https://kihkatxbwreuxtqagvsl.supabase.co';
+  const PROJECT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpaGthdHhid3JldXh0cWFndnNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODA3NzgsImV4cCI6MjEwNjc1Njc3OH0.sgLo1SGSahR0zEMiBucgpogrBmCxmNPGm1ROF6PM5Ak';
+  const dbClient = window.supabase.createClient(PROJECT_URL, PROJECT_KEY);
+
+  let currentPage = 1;
+  const PAGE_SIZE = 10;
+  let currentCategoryFilter = 'ทั้งหมด';
+  let cachedStories = [];
+
+  const popup = {
+    success: (title, text = '') => Swal.fire({
+      icon: 'success',
+      title,
+      text,
+      background: '#161a22',
+      color: '#f3f4f6',
+      confirmButtonColor: '#e50914',
+      customClass: { popup: 'dark-toast' }
+    }),
+    error: (title, text = '') => Swal.fire({
+      icon: 'error',
+      title,
+      text,
+      background: '#161a22',
+      color: '#f3f4f6',
+      confirmButtonColor: '#e50914',
+      customClass: { popup: 'dark-toast' }
+    }),
+    warning: (title, text = '') => Swal.fire({
+      icon: 'warning',
+      title,
+      text,
+      background: '#161a22',
+      color: '#f3f4f6',
+      confirmButtonColor: '#e50914',
+      customClass: { popup: 'dark-toast' }
+    })
+  };
+
+  function autoGrow(element) {
+    element.style.height = "5px";
+    element.style.height = (element.scrollHeight) + "px";
+  }
+
+  function resizeImage(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const scale = 0.2;
+          canvas.width = Math.round(img.width * scale) || 120;
+          canvas.height = Math.round(img.height * scale) || 120;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => resolve(blob), file.type || 'image/jpeg', 0.82);
+        };
+      };
+    });
+  }
+
+  let idleTimeout;
+  function resetIdleTimer() {
+    clearTimeout(idleTimeout);
+    if (localStorage.getItem('darknight_admin')) {
+      localStorage.setItem('darknight_login_time', Date.now().toString());
+    }
+    idleTimeout = setTimeout(() => {
+      if (localStorage.getItem('darknight_admin')) {
+        handleLogout();
+        popup.warning('หมดเวลาการใช้งาน', 'ไม่มีการเคลื่อนไหวหน้าจอเกิน 30 นาที ระบบได้นำคุณออกจากระบบอัตโนมัติ');
+      }
+    }, 30 * 60 * 1000);
+  }
+
+  function startIdleTimer() {
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(evt => window.addEventListener(evt, resetIdleTimer, false));
+    resetIdleTimer();
+  }
+
+  function checkAuth() {
+    const activeAdmin = localStorage.getItem('darknight_admin');
+    const loginTime = localStorage.getItem('darknight_login_time');
+
+    if (activeAdmin && loginTime) {
+      if (Date.now() - parseInt(loginTime) > 30 * 60 * 1000) {
+        handleLogout();
+        popup.warning('เซสชันหมดอายุ', 'กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+        return;
+      }
+      document.getElementById('authSection').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('currentAdminName').innerText = `ผู้ใช้: ${activeAdmin}`;
+      loadStories();
+      loadAdminUsers();
+      startIdleTimer();
+    } else {
+      document.getElementById('authSection').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    }
+  }
+
+  async function handleLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+
+    if (!username || !password) return popup.warning('แจ้งเตือน', 'กรุณากรอก Username และ Password ให้ครบถ้วน');
+
+    const btn = document.getElementById('btnLogin');
+    btn.innerText = "กำลังตรวจสอบ...";
+    btn.disabled = true;
+
+    try {
+      const { data, error } = await dbClient
+        .from('admin_users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
+
+      if (error || !data) {
+        popup.error('ผิดพลาด', 'Username หรือ Password ไม่ถูกต้อง');
+      } else {
+        localStorage.setItem('darknight_admin', data.username);
+        localStorage.setItem('darknight_login_time', Date.now().toString());
+        popup.success('ยินดีต้อนรับ', `เข้าสู่ระบบสำเร็จในชื่อ: ${data.username}`);
+        checkAuth();
+      }
+    } catch (err) {
+      popup.error('เกิดข้อผิดพลาด', err.message);
+    } finally {
+      btn.innerText = "เข้าสู่ระบบ";
+      btn.disabled = false;
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('darknight_admin');
+    localStorage.removeItem('darknight_login_time');
+    checkAuth();
+  }
+
+  function switchSection(section) {
+    if (section === 'stories') {
+      document.getElementById('sectionStories').style.display = 'block';
+      document.getElementById('sectionAdmins').style.display = 'none';
+      document.getElementById('tabStoriesBtn').classList.add('active');
+      document.getElementById('tabAdminsBtn').classList.remove('active');
+    } else {
+      document.getElementById('sectionStories').style.display = 'none';
+      document.getElementById('sectionAdmins').style.display = 'block';
+      document.getElementById('tabStoriesBtn').classList.remove('active');
+      document.getElementById('tabAdminsBtn').classList.add('active');
+      loadAdminUsers();
+    }
+  }
+
+  // --- จัดการบัญชีแอดมิน ---
+  async function loadAdminUsers() {
+    const { data, error } = await dbClient
+      .from('admin_users')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) return console.error(error);
+
+    const tbody = document.getElementById('adminTableBody');
+    tbody.innerHTML = '';
+
+    data.forEach(user => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${user.username}</strong></td>
+        <td><code>••••••••</code> <span style="font-size:11px; color:#64748b;">(${user.password})</span></td>
+        <td>${new Date(user.created_at).toLocaleDateString('th-TH')}</td>
+        <td>
+          <button class="btn-edit" onclick="startEditAdmin('${user.id}', '${user.username}', '${user.password}')">แก้ไข</button>
+          <button class="btn-danger" onclick="deleteAdmin('${user.id}', '${user.username}')">ลบ</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function handleSaveAdmin() {
+    const editId = document.getElementById('editAdminId').value;
+    const username = document.getElementById('adminUserField').value.trim();
+    const password = document.getElementById('adminPassField').value.trim();
+
+    if (!username || !password) return popup.warning('แจ้งเตือน', 'กรุณากรอก Username และ Password ให้ครบถ้วน');
+
+    if (editId) {
+      const { error } = await dbClient.from('admin_users').update({ username, password }).eq('id', editId);
+      if (error) popup.error('ผิดพลาด', error.message);
+      else {
+        popup.success('สำเร็จ', 'อัปเดตข้อมูลแอดมินเรียบร้อย');
+        cancelAdminEdit();
+        loadAdminUsers();
+      }
+    } else {
+      const { error } = await dbClient.from('admin_users').insert([{ username, password }]);
+      if (error) popup.error('ผิดพลาด', error.message);
+      else {
+        popup.success('สำเร็จ', 'เพิ่มบัญชีแอดมินใหม่สำเร็จ');
+        document.getElementById('adminUserField').value = '';
+        document.getElementById('adminPassField').value = '';
+        loadAdminUsers();
+      }
+    }
+  }
+
+  function startEditAdmin(id, user, pass) {
+    document.getElementById('editAdminId').value = id;
+    document.getElementById('adminUserField').value = user;
+    document.getElementById('adminPassField').value = pass;
+    document.getElementById('adminFormTitle').innerText = 'แก้ไขบัญชีแอดมิน';
+    document.getElementById('btnSaveAdmin').innerText = 'อัปเดตการแก้ไข';
+    document.getElementById('btnCancelEdit').style.display = 'inline-block';
+  }
+
+  function cancelAdminEdit() {
+    document.getElementById('editAdminId').value = '';
+    document.getElementById('adminUserField').value = '';
+    document.getElementById('adminPassField').value = '';
+    document.getElementById('adminFormTitle').innerText = '+ เพิ่มบัญชีแอดมินใหม่';
+    document.getElementById('btnSaveAdmin').innerText = 'บันทึกบัญชีแอดมิน';
+    document.getElementById('btnCancelEdit').style.display = 'none';
+  }
+
+  async function deleteAdmin(id, username) {
+    const activeAdmin = localStorage.getItem('darknight_admin');
+    if (username === activeAdmin) return popup.warning('ไม่อนุญาต', 'ไม่สามารถลบบัญชีที่คุณกำลังใช้งานอยู่ได้');
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบ?',
+      text: `ต้องการลบแอดมิน "${username}" ใช่หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#4b5563',
+      confirmButtonText: 'ใช่, ลบเลย',
+      cancelButtonText: 'ยกเลิก',
+      background: '#161a22',
+      color: '#f3f4f6'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const { error } = await dbClient.from('admin_users').delete().eq('id', id);
+    if (error) popup.error('ผิดพลาด', error.message);
+    else {
+      popup.success('สำเร็จ', 'ลบบัญชีแอดมินเรียบร้อย');
+      loadAdminUsers();
+    }
+  }
+
+  // --- จัดการเรื่องราว: เพิ่มและแก้ไข ---
+  function startEditStory(id) {
+    const story = cachedStories.find(s => s.id === id);
+    if (!story) return;
+
+    document.getElementById('editStoryId').value = story.id;
+    document.getElementById('existingCoverUrl').value = story.cover_url || '';
+    document.getElementById('existingGalleryUrls').value = JSON.stringify(story.gallery_urls || []);
+
+    document.getElementById('storyCategory').value = story.category;
+    document.getElementById('storyTitle').value = story.title;
+    document.getElementById('storyYoutube').value = story.youtube_url || '';
+    document.getElementById('storyDrive').value = story.google_drive_url || '';
+
+    const contentEl = document.getElementById('storyContent');
+    contentEl.value = story.content || '';
+    autoGrow(contentEl);
+
+    document.getElementById('storyStatusSelect').value = story.is_aired ? 'true' : 'false';
+
+    document.getElementById('currentCoverNotice').style.display = story.cover_url ? 'block' : 'none';
+    document.getElementById('currentGalleryNotice').style.display = (story.gallery_urls && story.gallery_urls.length > 0) ? 'block' : 'none';
+
+    document.getElementById('storyFormTitle').innerText = `✏️ กำลังแก้ไขเรื่อง: ${story.title}`;
+    document.getElementById('btnSaveStory').innerText = 'อัปเดตการแก้ไข';
+    document.getElementById('btnCancelStoryEdit').style.display = 'inline-block';
+
+    document.getElementById('storyFormContainer').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function cancelStoryEdit() {
+    document.getElementById('editStoryId').value = '';
+    document.getElementById('existingCoverUrl').value = '';
+    document.getElementById('existingGalleryUrls').value = '';
+
+    document.getElementById('storyTitle').value = '';
+    document.getElementById('coverFileInput').value = '';
+    document.getElementById('galleryFileInput').value = '';
+    document.getElementById('storyYoutube').value = '';
+    document.getElementById('storyDrive').value = '';
+
+    const contentEl = document.getElementById('storyContent');
+    contentEl.value = '';
+    contentEl.style.height = '100px';
+
+    document.getElementById('currentCoverNotice').style.display = 'none';
+    document.getElementById('currentGalleryNotice').style.display = 'none';
+
+    document.getElementById('storyFormTitle').innerText = '+ เพิ่มเรื่อง / สคริปต์ใหม่';
+    document.getElementById('btnSaveStory').innerText = 'บันทึกข้อมูลเข้าคลัง';
+    document.getElementById('btnCancelStoryEdit').style.display = 'none';
+  }
+
+  async function handleSaveStory() {
+    const title = document.getElementById('storyTitle').value.trim();
+    if (!title) return popup.warning('แจ้งเตือน', 'กรุณากรอกชื่อเรื่อง');
+
+    const editId = document.getElementById('editStoryId').value;
+    const coverInput = document.getElementById('coverFileInput');
+    const galleryInput = document.getElementById('galleryFileInput');
+
+    if (galleryInput.files.length > 6) {
+      return popup.warning('รูปภาพเกินกำหนด', 'อัปโหลดภาพประกอบได้สูงสุดไม่เกิน 6 ภาพเท่านั้น');
+    }
+
+    const btn = document.getElementById('btnSaveStory');
+    btn.innerText = 'กำลังประมวลผล...';
+    btn.disabled = true;
+
+    try {
+      // 1. จัดการรูปภาพปก
+      let coverUrl = document.getElementById('existingCoverUrl').value || '';
+      if (coverInput.files.length > 0) {
+        const file = coverInput.files[0];
+        const resizedBlob = await resizeImage(file);
+        const fileName = `cover_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+
+        const { error: coverErr } = await dbClient.storage.from('covers').upload(fileName, resizedBlob, { contentType: file.type });
+        if (coverErr) throw coverErr;
+
+        const { data: pUrl } = dbClient.storage.from('covers').getPublicUrl(fileName);
+        coverUrl = pUrl.publicUrl;
+      }
+
+      // 2. จัดการภาพประกอบ
+      let galleryUrls = [];
+      if (document.getElementById('existingGalleryUrls').value) {
+        try {
+          galleryUrls = JSON.parse(document.getElementById('existingGalleryUrls').value);
+        } catch (e) {
+          galleryUrls = [];
+        }
+      }
+
+      if (galleryInput.files.length > 0) {
+        galleryUrls = [];
+        for (let i = 0; i < galleryInput.files.length; i++) {
+          const gFile = galleryInput.files[i];
+          const gResizedBlob = await resizeImage(gFile);
+          const gFileName = `gallery_${Date.now()}_${i}_${gFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+
+          const { error: gErr } = await dbClient.storage.from('covers').upload(gFileName, gResizedBlob, { contentType: gFile.type });
+          if (gErr) throw gErr;
+
+          const { data: gPUrl } = dbClient.storage.from('covers').getPublicUrl(gFileName);
+          galleryUrls.push(gPUrl.publicUrl);
+        }
+      }
+
+      const storyPayload = {
+        category: document.getElementById('storyCategory').value,
+        title: title,
+        cover_url: coverUrl,
+        gallery_urls: galleryUrls,
+        youtube_url: document.getElementById('storyYoutube').value.trim(),
+        google_drive_url: document.getElementById('storyDrive').value.trim(),
+        content: document.getElementById('storyContent').value.trim(),
+        is_aired: document.getElementById('storyStatusSelect').value === 'true'
+      };
+
+      if (editId) {
+        // แก้ไขเรื่องเดิม
+        const { error } = await dbClient.from('stories').update(storyPayload).eq('id', editId);
+        if (error) throw error;
+        popup.success('สำเร็จ!', 'แก้ไขข้อมูลเรื่องเรียบร้อย');
+      } else {
+        // เพิ่มเรื่องใหม่
+        const { error } = await dbClient.from('stories').insert([storyPayload]);
+        if (error) throw error;
+        popup.success('สำเร็จ!', 'บันทึกเรื่องใหม่เข้าสู่ระบบเรียบร้อย');
+      }
+
+      cancelStoryEdit();
+      currentPage = 1;
+      loadStories();
+    } catch (err) {
+      popup.error('เกิดข้อผิดพลาด', err.message);
+    } finally {
+      btn.innerText = editId ? 'อัปเดตการแก้ไข' : 'บันทึกข้อมูลเข้าคลัง';
+      btn.disabled = false;
+    }
+  }
+
+  async function loadStories() {
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    let query = dbClient
+      .from('stories')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (currentCategoryFilter !== 'ทั้งหมด') {
+      query = query.eq('category', currentCategoryFilter);
+    }
+
+    const { data, count, error } = await query;
+    if (error) return console.error(error);
+
+    cachedStories = data || [];
+    const tbody = document.getElementById('storyTableBody');
+    tbody.innerHTML = '';
+
+    cachedStories.forEach(story => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="width: 70px;">
+          ${story.cover_url ? `<img src="${story.cover_url}" style="width:60px; height:60px; object-fit:cover; border-radius:4px;">` : '<span style="color:#64748b;">ไม่มี</span>'}
+        </td>
+        <td>
+          <span class="badge">${story.category}</span><br>
+          <small style="color: #94a3b8;">ลำดับหมวด: #${story.category_order || 1}</small>
+        </td>
+        <td>
+          <a href="story.html?id=${story.id}" target="_blank" rel="noopener noreferrer" style="font-weight:bold; font-size:15px; color:#fff;">
+            ${story.title} ↗
+          </a>
+          ${story.gallery_urls && story.gallery_urls.length > 0 ? `<br><small style="color:#38bdf8;">(มีภาพประกอบ ${story.gallery_urls.length} รูป)</small>` : ''}
+        </td>
+        <td>
+          <select onchange="updateAirStatus('${story.id}', this.value)" style="padding: 5px; width: auto; font-weight: bold; background: #1f242d;">
+            <option value="true" ${story.is_aired ? 'selected' : ''}>● เขียว (ปล่อยแล้ว)</option>
+            <option value="false" ${!story.is_aired ? 'selected' : ''}>● แดง (ยังไม่ปล่อย)</option>
+          </select>
+        </td>
+        <td>
+          ${story.youtube_url ? `<a href="${story.youtube_url}" target="_blank" rel="noopener noreferrer">YouTube ↗</a>` : '-'} | 
+          ${story.google_drive_url ? `<a href="${story.google_drive_url}" target="_blank" rel="noopener noreferrer" style="color:#34d399;">Drive ↗</a>` : '-'}
+        </td>
+        <td style="white-space: nowrap;">
+          <button class="btn-edit" onclick="startEditStory('${story.id}')">แก้ไข</button>
+          <button class="btn-danger" onclick="deleteStory('${story.id}')">ลบ</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const totalPages = Math.ceil((count || 0) / PAGE_SIZE) || 1;
+    document.getElementById('pageIndicator').innerText = `หน้า ${currentPage} จาก ${totalPages} (ทั้งหมด ${count || 0} เรื่อง)`;
+    document.getElementById('btnPrev').disabled = currentPage <= 1;
+    document.getElementById('btnNext').disabled = currentPage >= totalPages;
+  }
+
+  function setAdminFilter(category, btnElement) {
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    btnElement.classList.add('active');
+    currentCategoryFilter = category;
+    currentPage = 1;
+    loadStories();
+  }
+
+  function changePage(direction) {
+    currentPage += direction;
+    loadStories();
+  }
+
+  async function updateAirStatus(id, value) {
+    const isAired = value === 'true';
+    const { error } = await dbClient.from('stories').update({ is_aired: isAired }).eq('id', id);
+    if (error) popup.error('ผิดพลาด', error.message);
+  }
+
+  async function deleteStory(id) {
+    const result = await Swal.fire({
+      title: 'ต้องการลบเรื่องนี้?',
+      text: 'ข้อมูลที่ลบแล้วจะไม่สามารถกู้คืนได้',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#4b5563',
+      confirmButtonText: 'ยืนยันลบ',
+      cancelButtonText: 'ยกเลิก',
+      background: '#161a22',
+      color: '#f3f4f6'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const { error } = await dbClient.from('stories').delete().eq('id', id);
+    if (error) popup.error('ผิดพลาด', error.message);
+    else {
+      popup.success('สำเร็จ', 'ลบเรื่องออกจากระบบเรียบร้อย');
+      loadStories();
+    }
+  }
+
+  checkAuth();
+</script>
+</body>
+</html>
