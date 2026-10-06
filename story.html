@@ -13,6 +13,8 @@
       --accent-red: #e50914;
       --text-main: #f3f4f6;
       --text-muted: #9ca3af;
+      --accent-green: #10b981;
+      --accent-blue: #38bdf8;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -48,11 +50,16 @@
     }
     .main-cover {
       width: 100%;
-      max-height: 420px;
+      max-height: 450px;
       object-fit: cover;
       border-radius: 8px;
       margin-bottom: 25px;
       display: none;
+      cursor: zoom-in;
+      transition: opacity 0.2s;
+    }
+    .main-cover:hover {
+      opacity: 0.9;
     }
     .content-body {
       font-size: 1.05rem;
@@ -76,21 +83,105 @@
     }
     .gallery-grid img {
       width: 100%;
-      height: 160px;
+      height: 180px;
       object-fit: cover;
       border-radius: 6px;
       border: 1px solid var(--card-border);
+      cursor: zoom-in;
+      transition: transform 0.2s, opacity 0.2s;
     }
-    .btn-yt {
+    .gallery-grid img:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+
+    /* กล่องลิงก์แนบ */
+    .links-section {
+      margin-top: 25px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn-action {
       display: inline-flex;
       align-items: center;
-      background: var(--accent-red);
-      color: white;
+      gap: 8px;
       text-decoration: none;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: bold;
       padding: 10px 18px;
       border-radius: 6px;
+      transition: 0.2s;
+    }
+    .btn-yt {
+      background: var(--accent-red);
+      color: #fff;
+    }
+    .btn-yt:hover {
+      background: #b91c1c;
+    }
+    .btn-drive {
+      background: #065f46;
+      color: #34d399;
+      border: 1px solid #059669;
+    }
+    .btn-drive:hover {
+      background: #047857;
+      color: #fff;
+    }
+
+    /* กล่องป้ายแอดมิน */
+    .admin-bar-notice {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .admin-bar-notice span {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: var(--accent-blue);
+    }
+
+    /* Modal ขยายรูปภาพเต็มจอ (Lightbox) */
+    .image-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+    .image-modal img {
+      max-width: 95vw;
+      max-height: 92vh;
+      object-fit: contain;
+      border-radius: 6px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.8);
+      cursor: default;
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 20px;
+      right: 25px;
+      color: #fff;
+      font-size: 32px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+      user-select: none;
+    }
+    .modal-close-btn:hover {
+      color: var(--accent-red);
     }
   </style>
 </head>
@@ -101,7 +192,7 @@
     <div id="storyArticle" style="display:none;">
       <span class="badge" id="categoryBadge"></span>
       <h1 id="storyTitle"></h1>
-      <img id="mainCoverImg" class="main-cover" src="" alt="ภาพปก">
+      <img id="mainCoverImg" class="main-cover" src="" alt="ภาพปก" onclick="expandImage(this.src)">
       <div class="content-body" id="storyContent"></div>
 
       <div id="gallerySection" style="display:none;">
@@ -109,14 +200,38 @@
         <div class="gallery-grid" id="galleryGrid"></div>
       </div>
 
-      <div id="ytContainer" style="margin-top: 25px;"></div>
+      <!-- ส่วนแสดงลิงก์สำหรับผู้ใช้ทั่วไปและแอดมิน -->
+      <div id="linkContainer"></div>
     </div>
+  </div>
+
+  <!-- กล่องแสดงภาพขยายขนาดเต็ม (Lightbox Modal) -->
+  <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+    <span class="modal-close-btn">&times;</span>
+    <img id="modalImg" src="" alt="ขยายภาพ" onclick="event.stopPropagation()">
   </div>
 
   <script>
     const PROJECT_URL = 'https://kihkatxbwreuxtqagvsl.supabase.co';
     const PROJECT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpaGthdHhid3JldXh0cWFndnNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODA3NzgsImV4cCI6MjEwNjc1Njc3OH0.sgLo1SGSahR0zEMiBucgpogrBmCxmNPGm1ROF6PM5Ak';
     const dbClient = window.supabase.createClient(PROJECT_URL, PROJECT_KEY);
+
+    // ฟังก์ชันขยายและปิดภาพ
+    function expandImage(src) {
+      if (!src) return;
+      document.getElementById('modalImg').src = src;
+      document.getElementById('imageModal').style.display = 'flex';
+    }
+
+    function closeImageModal() {
+      document.getElementById('imageModal').style.display = 'none';
+      document.getElementById('modalImg').src = '';
+    }
+
+    // กดปุ่ม Esc เพื่อปิดภาพขยายได้
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeImageModal();
+    });
 
     async function loadStory() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -155,17 +270,61 @@
           const img = document.createElement('img');
           img.src = url;
           img.loading = 'lazy';
+          img.onclick = () => expandImage(url);
           galleryGrid.appendChild(img);
         });
         document.getElementById('gallerySection').style.display = 'block';
       }
 
-      if (data.youtube_url) {
-        document.getElementById('ytContainer').innerHTML = `
-          <a href="${data.youtube_url}" target="_blank" rel="noopener noreferrer" class="btn-yt">
-            ▶ รับชมคลิปเสียงบน YouTube ↗
-          </a>
+      // ตรวจสอบสถานะการล็อกอินของแอดมิน
+      const activeAdmin = localStorage.getItem('darknight_admin');
+      const loginTime = localStorage.getItem('darknight_login_time');
+      const isAdmin = activeAdmin && loginTime && (Date.now() - parseInt(loginTime) <= 30 * 60 * 1000);
+
+      const linkContainer = document.getElementById('linkContainer');
+
+      if (isAdmin) {
+        // สำหรับแอดมิน: แสดงทั้งปุ่ม YouTube และ Google Drive
+        let adminHtml = `
+          <div class="admin-bar-notice">
+            <span>⚙️ สิทธิ์ผู้ดูแลระบบ (เข้าสู่ระบบโดย: ${activeAdmin})</span>
+            <div class="links-section" style="margin-top: 5px;">
         `;
+
+        if (data.youtube_url) {
+          adminHtml += `
+            <a href="${data.youtube_url}" target="_blank" rel="noopener noreferrer" class="btn-action btn-yt">
+              ▶ เปิดคลิป YouTube ↗
+            </a>
+          `;
+        }
+
+        if (data.google_drive_url) {
+          adminHtml += `
+            <a href="${data.google_drive_url}" target="_blank" rel="noopener noreferrer" class="btn-action btn-drive">
+              📁 เปิด Google Drive ↗
+            </a>
+          `;
+        } else {
+          adminHtml += `<span style="font-size: 13px; color: var(--text-muted);">(ไม่มีลิงก์ Google Drive)</span>`;
+        }
+
+        adminHtml += `
+            </div>
+          </div>
+        `;
+        linkContainer.innerHTML = adminHtml;
+      } else {
+        // สำหรับบุคคลทั่วไป: แสดงเฉพาะปุ่ม YouTube
+        if (data.youtube_url) {
+          linkContainer.innerHTML = `
+            <div class="links-section">
+              <a href="${data.youtube_url}" target="_blank" rel="noopener noreferrer" class="btn-action btn-yt">
+                ▶ รับชมคลิปเสียงบน YouTube ↗
+              </a>
+            </div>
+          `;
+        }
       }
     }
 
